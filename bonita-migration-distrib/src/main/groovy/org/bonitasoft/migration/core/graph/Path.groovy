@@ -33,6 +33,9 @@ public class Path {
     Path(Transition transition){
         transitions = [transition]
     }
+    Path(){
+        transitions = []
+    }
     Path(Path original, Transition transition){
         transitions = []
         transitions.addAll(original.transitions)

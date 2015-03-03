@@ -29,10 +29,12 @@ import groovy.transform.ToString
 public class TransitionGraph {
 
     List<Transition> transitions = [];
+    private String firstVersion
 
     TransitionGraph(String firstVersion, List<String> versions) {
+        this.firstVersion = firstVersion
         versions.each { target ->
-            if(!target.equals(firstVersion)){
+            if (!target.equals(firstVersion)) {
                 transitions.add(new Transition(source: getPreviousReleasedVersion(versions, target), target: target))
             }
         }
@@ -106,5 +108,16 @@ public class TransitionGraph {
         getPaths(source).findAll {
             it.getLastVersion() == target
         }.sort(false, { a, b -> a.getSize() <=> b.getSize() })[0]
+    }
+
+    Path getLongestPath() {
+        def Path path = new Path();
+        def Map<String,Transition> transitionMap = transitions.collectEntries { [it.source, it] }
+        def nextTransition = transitionMap.get(firstVersion)
+        while (nextTransition != null){
+            path.add(nextTransition)
+            nextTransition = transitionMap.get(nextTransition.target);
+        }
+        return path
     }
 }

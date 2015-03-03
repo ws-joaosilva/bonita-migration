@@ -13,6 +13,8 @@
  **/
 package org.bonitasoft.migration.core
 
+import com.alexkasko.delta.DirDeltaPatcher
+import groovy.io.FileType
 import groovy.time.TimeCategory
 import org.bonitasoft.migration.core.graph.Path
 import org.bonitasoft.migration.core.graph.Transition
@@ -111,11 +113,15 @@ public class MigrationRunner {
         driverClass = MigrationUtil.getAndPrintProperty(properties, MigrationUtil.DB_DRIVERCLASS, true);
         println ""
 
-        graph = getMigrationPaths(new File("versions"))
+
+        def versionsFolder = new File("versions")
+        graph = getMigrationPaths(versionsFolder)
         sourceVersion = checkSourceVersion(bonitaHome, sourceVersion)
         if (sourceVersion == null) {
             return null;
         }
+        println "Initializing the migration tool..."
+        constructBonitaHomesFromPatches(versionsFolder, graph);
         //all steps from a version to an other
         List<Path> paths = graph.getPaths(sourceVersion)
         if (!paths.isEmpty()) {
@@ -136,6 +142,29 @@ public class MigrationRunner {
         def path = graph.getShortestPath(sourceVersion, targetVersion)
         println "MIGRATE $sourceVersion TO $targetVersion using path $path"
         return path;
+    }
+
+    def constructBonitaHomesFromPatches(File versionFolder, TransitionGraph transitionGraph) {
+        def Path path = transitionGraph.getLongestPath();
+        path.transitions.each { transition ->
+            def source = transition.getSource()
+            def target = transition.getTarget()
+            def sourceHome = new File(new File(new File(versionFolder,source), "Bonita-home"),"bonita");
+            def targetHome = new File(new File(new File(versionFolder,target), "Bonita-home"),"bonita");
+            def File targetPatch
+            targetHome.getParentFile().eachFile(FileType.FILES){ file ->
+                if(file.getName().endsWith(".patch")){
+                    targetPatch = file
+                }
+            }
+            if(targetPatch != null){
+                println "apply the patch for bonita home "+target
+                println "Copy "+sourceHome +" to "+targetHome
+                IOUtil.copyDirectory(sourceHome,targetHome)
+                println "Apply "+targetPatch
+                new DirDeltaPatcher().patch(targetHome, targetPatch);
+            }
+        }
     }
 
     String checkSourceVersion(File bonitaHome, String givenSourceVersion) {
