@@ -1,62 +1,59 @@
-package org.bonitasoft.migration.core;
+/**
+ * Copyright (C) 2015 Bonitasoft S.A.
+ * BonitaSoft, 32 rue Gustave Eiffel - 38000 Grenoble
+ * This library is free software; you can redistribute it and/or modify it under the terms
+ * of the GNU Lesser General Public License as published by the Free Software Foundation
+ * version 2.1 of the License.
+ * This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU Lesser General Public License for more details.
+ * You should have received a copy of the GNU Lesser General Public License along with this
+ * program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth
+ * Floor, Boston, MA 02110-1301, USA.
+ **/
 
-import static junitparams.JUnitParamsRunner.$
-import static org.junit.Assert.*
-import static org.mockito.Mockito.*
-import junitparams.JUnitParamsRunner
-import junitparams.Parameters
+package org.bonitasoft.migration.core
 
+import groovy.sql.Sql
 import org.junit.Test
-import org.junit.runner.RunWith
 
-import org.bonitasoft.migration.core.graph.TransitionGraph
-import org.bonitasoft.migration.core.graph.Transition
-import org.bonitasoft.migration.core.graph.Path
-
-@RunWith(JUnitParamsRunner.class)
+/**
+ * @author Baptiste Mesta
+ */
 class MigrationRunnerTest {
 
-    MigrationRunner runner = new MigrationRunner()
-
-    @Parameters
-    @Test
-    public void check_version_in_database_and_bonita_home(String versionInDb,String  versionInBonitaHome,String  givenVersion,String returnedVersion, String message ){
-        def detectedVersion = runner.checkSourceVersion(versionInDb, versionInBonitaHome, givenVersion);
-
-        assertEquals(message, returnedVersion, detectedVersion);
-    }
-
-    private Object[] parametersForCheck_version_in_database_and_bonita_home() {
-        return $(
-        $("BOS-6.0", null, "6.0.2","6.0.2", "Case [6.0,6.1[: should have returned the given version"),
-        $("BOS-6.0", null, "6.1.2",null,"Case [6.0,6.1[: should have returned null because the given version was > 6.1"),
-        $("6.1.0", null, "6.1.1",null,"Case 6.1.0: should have returned null because the given version was != 6.1.0"),
-        $("6.1.3", null, null,"6.1.3","Case 6.1.3: should have returned 6.1.3"),
-        $("6.1.3", null, "6.1.3","6.1.3","Case 6.1.3: should have returned 6.1.3 (same as given version)"),
-        $("6.2.0", "6.2.0", null,"6.2.0","Case >6.2.0 should have returned 6.2.0 (db=home)"),
-        $("6.2.0", "6.2.0", "6.2.0","6.2.0","Case >6.2.0 should have returned 6.2.0 (db=home=given version)"),
-        $("6.2.1", "6.2.1", "6.2.3",null,"Case >6.2.0 should have returned null (db=home != given version)"),
-        $("6.2.1", "6.2.2", null,null,"Case >6.2.0 should have returned null (db!=home)"),
-        );
-    }
+    def infos = []
+    def sql = [] as Sql
+    def logger = [info: { String message -> infos.add(message) }] as Logger
+    def boolean isStepExecuted = false
 
     @Test
-    public void getMigrationPaths(){
-        def File versionsFolder = mock(File.class)
-        def File v602to610 = mock(File.class)
-        def File v610to611 = mock(File.class)
-        when(v602to610.isDirectory()).thenReturn(true)
-        when(v602to610.getName()).thenReturn("6.0.2-6.1.0")
-        when(v610to611.isDirectory()).thenReturn(true)
-        when(v610to611.getName()).thenReturn("6.1.0-6.1.1")
-        when(versionsFolder.listFiles()).thenReturn([v602to610, v610to611] as File[])
-        when(versionsFolder.exists()).thenReturn(true)
-        when(versionsFolder.isDirectory()).thenReturn(true)
-        def versionMatrix = runner.getMigrationPaths(versionsFolder)
+    void testRun() {
 
-        assertEquals([
-            new Transition(source:"6.0.2",target:"6.1.0"),
-            new Transition(source:"6.1.0",target:"6.1.1")
-        ],versionMatrix.transitions)
+        def migrations = [new VersionMigration() {
+
+            @Override
+            List<MigrationStep> getMigrationSteps() {
+                return [new MigrationStep() {
+                    @Override
+                    def execute(Sql sql, DBVendor dbVendor) {
+                        isStepExecuted = true
+                        return null
+                    }
+
+                    @Override
+                    String getDescription() {
+                        return "the Description"
+                    }
+                }]
+            }
+        }
+        ]
+        MigrationRunner migrationRunner = new MigrationRunner(sql: sql, logger: logger, dbVendor: MigrationStep.DBVendor.POSTGRES, versionMigrations: migrations)
+
+        migrationRunner.run()
+
+        assert isStepExecuted
+
     }
 }
