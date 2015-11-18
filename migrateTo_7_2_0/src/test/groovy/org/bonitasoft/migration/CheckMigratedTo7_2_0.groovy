@@ -14,41 +14,32 @@
 
 package org.bonitasoft.migration
 
-import org.bonitasoft.engine.LocalServerTestsInitializer
-import org.bonitasoft.engine.api.PlatformAPIAccessor
 import org.bonitasoft.engine.api.TenantAPIAccessor
 import org.bonitasoft.engine.bpm.contract.Type
 import org.bonitasoft.engine.bpm.flownode.ActivityInstanceCriterion
 import org.bonitasoft.engine.bpm.flownode.MultiInstanceLoopCharacteristics
 import org.bonitasoft.engine.bpm.flownode.UserTaskDefinition
 import org.bonitasoft.engine.bpm.parameter.ParameterInstance
-import org.bonitasoft.engine.test.PlatformTestUtil
+import org.bonitasoft.engine.test.junit.BonitaEngineRule
 import org.bonitasoft.migration.filler.FillerUtils
-import org.junit.AfterClass
 import org.junit.BeforeClass
+import org.junit.Rule
 import org.junit.Test
 
 import static org.assertj.core.api.Assertions.assertThat
 import static org.assertj.core.api.Assertions.tuple
-
 /**
  * @author Laurent Leseigneur
  */
 class CheckMigratedTo7_2_0 {
 
+    @Rule
+    public BonitaEngineRule bonitaEngineRule = BonitaEngineRule.create().reuseExistingPlatform()
+
+
     @BeforeClass
     public static void beforeClass() {
         FillerUtils.initializeEngineSystemProperties()
-        startNode()
-    }
-
-    private static void startNode() {
-        LocalServerTestsInitializer.instance.prepareEnvironment()
-        def platformTestUtil = new PlatformTestUtil()
-        def platform = platformTestUtil.loginOnPlatform()
-        def platformApi = platformTestUtil.getPlatformAPI(platform)
-        platformApi.startNode()
-        platformTestUtil.logoutOnPlatform(platform)
     }
 
     @Test
@@ -141,11 +132,6 @@ class CheckMigratedTo7_2_0 {
         TenantAPIAccessor.getLoginAPI().logout(session)
     }
 
-    @AfterClass
-    public static void afterClass() {
-        new PlatformTestUtil().stopPlatformAndTenant(PlatformAPIAccessor.getPlatformAPI(new PlatformTestUtil().loginOnPlatform()), true)
-    }
-
 
     @Test
     public void verifyParametersAreMigratedInDb() {
@@ -154,8 +140,11 @@ class CheckMigratedTo7_2_0 {
         def processDefinitionId = processAPI.getProcessDefinitionId("processWithParameters", "1.1.0")
 
         processAPI.startProcess(processDefinitionId)
-        Thread.sleep(1000)
-        def instances = processAPI.getPendingHumanTaskInstances(session.getUserId(), 0, 10, ActivityInstanceCriterion.NAME_ASC)
+        def timeout = System.currentTimeMillis() + 15000
+        def instances
+        while ((instances = processAPI.getPendingHumanTaskInstances(session.getUserId(), 0, 10, ActivityInstanceCriterion.NAME_ASC)).size() <2 && System.currentTimeMillis() < timeout) {
+            Thread.sleep(200)
+        }
         assertThat(instances).extracting("name", "displayName").containsExactly(tuple("step1", "theParam1Value"), tuple("step2", "123456789"))
 
         ParameterInstance parameterInstance = processAPI.getParameterInstance(processDefinitionId, "myParam3")
