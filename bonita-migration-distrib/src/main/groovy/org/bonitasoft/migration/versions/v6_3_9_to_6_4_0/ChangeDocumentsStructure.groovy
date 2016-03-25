@@ -98,9 +98,9 @@ class ChangeDocumentsStructure extends DatabaseMigrationStep {
                     executeUpdate("UPDATE arch_document_mapping SET documentid = $nextId WHERE arch_document_mapping.id = $row.id AND arch_document_mapping.tenantid = $tenantId")
                     nextId++
                 }
-                sql.eachRow("SELECT * FROM document WHERE tenantid = $tenantId AND hascontent = $trueValue") { row ->
-                    executeUpdate("UPDATE document SET url = null WHERE document.id = $row.id AND document.tenantid = $tenantId")
-                }
+
+                executeUpdate("UPDATE document SET url = null WHERE document.tenantid = $tenantId AND hascontent = $trueValue " )
+
                 executeUpdate("UPDATE sequence SET nextid = $nextId WHERE tenantid=$tenantId AND id = 10090")
                 sql.eachRow("SELECT DISTINCT sourceobjectid FROM arch_document_mapping WHERE tenantid = $tenantId") { row ->
                     def version = "1";
