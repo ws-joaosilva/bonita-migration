@@ -494,6 +494,168 @@ description=An example page
         TenantAPIAccessor.getLoginAPI().logout(session)
     }
 
+
+    @FillAction
+    public void barInDatabase() {
+        def session = TenantAPIAccessor.getLoginAPI().login("install", "install");
+        def processAPI = TenantAPIAccessor.getProcessAPI(session)
+        def identityAPI = TenantAPIAccessor.getIdentityAPI(session)
+        def user = identityAPI.createUser("userOfBARInDatabase", "bpm")
+
+        def subProcessBuilder = new BusinessArchiveBuilder().createNewBusinessArchive()
+
+        def subProcessDefinitionBuilder = new ProcessDefinitionBuilder().createNewInstance("sub", "1.0")
+        subProcessDefinitionBuilder.addContract().addInput("subContractInput", Type.TEXT, "call activity expected contract input")
+
+        subProcessBuilder.setProcessDefinition(subProcessDefinitionBuilder.done())
+        subProcessBuilder.setActorMapping("""
+<actorMappings:actorMappings xmlns:actorMappings="http://www.bonitasoft.org/ns/actormapping/6.0">
+    <actorMapping name="theUser">
+        <users>
+            <user>userOfBARInDatabase</user>
+        </users>
+        <groups />
+        <roles />
+        <memberships />
+    </actorMapping>
+</actorMappings:actorMappings>
+""".getBytes())
+        def subProcessDefinition = processAPI.deploy(subProcessDefinitionBuilder.done())
+        processAPI.enableProcess(subProcessDefinition.getId())
+
+        def builder = new BusinessArchiveBuilder().createNewBusinessArchive()
+
+        def processDefinitionBuilder = new ProcessDefinitionBuilder().createNewInstance("barInDatabase", "1.1.0")
+        processDefinitionBuilder.addActor("theUser")
+        def task = processDefinitionBuilder.addUserTask("step1", "theUser")
+        def callActivityBuilder = task.addCallActivity("callActivity", new ExpressionBuilder().createConstantStringExpression("sub"), new ExpressionBuilder().createConstantStringExpression("1.0"))
+        callActivityBuilder.addProcessStartContractInput("subContractInput", new ExpressionBuilder().createConstantStringExpression("input value"))
+
+        task.addConnector("theConnector", "connectorId", "version", ConnectorEvent.ON_ENTER).addInput("input1", new ExpressionBuilder().createConstantStringExpression("input1Value"))
+                .addOutput(new OperationBuilder().createSetDataOperation("myData", new ExpressionBuilder().createInputExpression("outputValue", String.class.getName())))
+
+
+
+        processDefinitionBuilder.addUserTask("step2", "theUser");
+
+        processDefinitionBuilder.addDocumentDefinition("myDoc1").addFile("initialContent1.txt").addContentFileName("MyFile.txt").addMimeType("plain/text")
+        processDefinitionBuilder.addDocumentDefinition("myDoc2").addFile("initialContent2.txt").addContentFileName("MyFile.txt").addMimeType("plain/text")
+        processDefinitionBuilder.addDocumentDefinition("myDoc3").addFile("initialContent3.txt").addContentFileName("MyFile.txt").addMimeType("plain/text")
+        processDefinitionBuilder.addData("myData", "java.lang.String", new ExpressionBuilder().createConstantStringExpression("myDataValue")).addDescription("my data description")
+        processDefinitionBuilder.addTransition("step1", "step2")
+
+        builder.setProcessDefinition(processDefinitionBuilder.done())
+        builder.addDocumentResource(new BarResource("initialContent1.txt", "This is the content of my file1".bytes))
+        builder.addDocumentResource(new BarResource("initialContent2.txt", "This is the content of my file2".bytes))
+        builder.addDocumentResource(new BarResource("initialContent3.txt", "This is the content of my file3".bytes))
+
+        builder.setActorMapping("""
+<actorMappings:actorMappings xmlns:actorMappings="http://www.bonitasoft.org/ns/actormapping/6.0">
+    <actorMapping name="theUser">
+        <users>
+            <user>userOfBARInDatabase</user>
+        </users>
+        <groups />
+        <roles />
+        <memberships />
+    </actorMapping>
+</actorMappings:actorMappings>
+""".getBytes())
+        builder.addExternalResource(new BarResource("index.html", "<html>".getBytes()));
+        builder.addExternalResource(new BarResource("content/other.html", "<html>1".getBytes()));
+        builder.addUserFilters(new BarResource("MyUserFilter.impl", """
+<connectorImplementation>
+    <definitionId>connectorId</definitionId>
+    <definitionVersion>version</definitionVersion>
+    <implementationClassname>MyUserFilter</implementationClassname>
+    <implementationId>implId</implementationId>
+    <implementationVersion>1.0</implementationVersion>
+    <jarDependencies>
+    </jarDependencies>
+</connectorImplementation>""".getBytes()))
+        builder.addConnectorImplementation(new BarResource("myConnector.impl", """
+<connectorImplementation>
+    <definitionId>connectorId</definitionId>
+    <definitionVersion>version</definitionVersion>
+    <implementationClassname>${MyConnector.class.getName()}</implementationClassname>
+    <implementationId>implId</implementationId>
+    <implementationVersion>1.0</implementationVersion>
+    <jarDependencies>
+    </jarDependencies>
+</connectorImplementation>""".getBytes()))
+                .done()
+
+
+        def processDefinition = processAPI.deploy(builder.done())
+        processAPI.enableProcess(processDefinition.getId())
+        processAPI.startProcess(processDefinition.getId())
+
+        TenantAPIAccessor.getLoginAPI().logout(session)
+    }
+
+
+    @FillAction
+    public void createProcessWithFormMappings() {
+        def session = TenantAPIAccessor.getLoginAPI().login("install", "install");
+        def processAPI = TenantAPIAccessor.getProcessAPI(session)
+        def identityAPI = TenantAPIAccessor.getIdentityAPI(session)
+        def pageAPI = TenantAPIAccessor.getCustomPageAPI(session)
+
+        def zip = IOUtil.zip(["Index.groovy": """
+    return ''
+""".getBytes(),
+                              "page.properties": """
+name=custompage_mypage
+displayName=MyPage
+description=An example page
+""".getBytes()])
+        def page = pageAPI.createPage("mypage.zip", zip)
+        def user = identityAPI.createUser("formMappingUser", "bpm")
+
+        def builder = new BusinessArchiveBuilder().createNewBusinessArchive()
+        def processDefinitionBuilder = new ProcessDefinitionBuilder().createNewInstance("formMappingProcess", "1.1.0")
+        processDefinitionBuilder.addActor("theUser")
+        processDefinitionBuilder.addUserTask("step1", "theUser")
+        processDefinitionBuilder.addUserTask("step2", "theUser")
+        processDefinitionBuilder.addUserTask("step3", "theUser")
+
+        builder.setProcessDefinition(processDefinitionBuilder.done())
+        builder.setActorMapping("""
+<actorMappings:actorMappings xmlns:actorMappings="http://www.bonitasoft.org/ns/actormapping/6.0">
+    <actorMapping name="theUser">
+        <users>
+            <user>formMappingProcess</user>
+        </users>
+        <groups />
+        <roles />
+        <memberships />
+    </actorMapping>
+</actorMappings:actorMappings>
+""".getBytes())
+        builder.setFormMappings(new FormMappingModelBuilder().addProcessOverviewForm("the url of the page", FormMappingTarget.URL)
+                .addProcessStartForm("custompage_mypage", FormMappingTarget.INTERNAL)
+                .addTaskForm(null, FormMappingTarget.NONE, "step1")
+                .addTaskForm(null, FormMappingTarget.NONE, "step3")
+                .addTaskForm(null, FormMappingTarget.UNDEFINED, "step2").build())
+
+
+        def processDefinition = processAPI.deploy(builder.done())
+
+
+        def urlMapping = pageAPI.resolvePageOrURL("processInstance/formMappingProcess/1.1.0", ["IS_ADMIN": true], true)
+        assert urlMapping.url == "the url of the page"
+        def internalMapping = pageAPI.resolvePageOrURL("process/formMappingProcess/1.1.0", ["IS_ADMIN": true], true);
+        assert internalMapping.pageId == page.id
+        shouldFail(NotFoundException) {
+            assert pageAPI.resolvePageOrURL("taskInstance/formMappingProcess/1.1.0/step1", ["IS_ADMIN": true], true);
+        }
+        shouldFail(NotFoundException) {
+            assert pageAPI.resolvePageOrURL("taskInstance/formMappingProcess/1.1.0/step2", ["IS_ADMIN": true], true);
+        }
+
+        TenantAPIAccessor.getLoginAPI().logout(session)
+    }
+
     /**
      * stop platform after all fill actions
      */

@@ -99,19 +99,19 @@ class Migration {
 
     def verifyPlatformIsTheSameInBonitaHome(Version version) {
         if (!version.equals(getBonitaHomeVersion())) {
-            //invalid case: given source (if any) not the same as version in db and as version in bonita home
-            logger.error("The versions are not consistent:")
+                //invalid case: given source (if any) not the same as version in db and as version in bonita home
+                logger.error("The versions are not consistent:")
             logger.error("The version of the database is ${version}")
             logger.error("The version of the bonita home is ${getBonitaHomeVersion()}")
-            logger.error("Check that you configuration is correct and restart the migration")
-            throw new IllegalStateException("Versions are not consistent, see logs")
+                logger.error("Check that you configuration is correct and restart the migration")
+                throw new IllegalStateException("Versions are not consistent, see logs")
+            }
         }
-    }
 
     def verifyPlatformIsValid(Version platformVersionInDatabase) {
         if (platformVersionInDatabase.majorVersion != 7) {
             throw new IllegalStateException("Sorry the but this tool can't manage version under 7.0.0")
-        }
+    }
     }
 
     private Version getPlatformVersion() {

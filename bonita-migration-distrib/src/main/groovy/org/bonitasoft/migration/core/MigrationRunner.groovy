@@ -44,7 +44,7 @@ class MigrationRunner {
             it.context = context
             context.setVersion(it.getVersion())
             if (Version.valueOf(it.getVersion()) < Version.valueOf("7.3.0")) {
-                it.migrateBonitaHome(isSp)
+            it.migrateBonitaHome(isSp)
             }
 
             it.getMigrationSteps().each { step ->
@@ -52,7 +52,6 @@ class MigrationRunner {
                 logger.info "| Execute migration step: " + step.description
                 Date stepStartDate = new Date()
                 step.execute(context)
-                def stepWarningMessage = step.warning
                 if (stepWarningMessage) {
                     warnings.put("migration to version:${it.version} - step:${step.description}", stepWarningMessage)
                 }
@@ -105,7 +104,7 @@ class MigrationRunner {
         logger.info(" Migration successfully completed, in " + TimeCategory.minus(end, migrationStartDate))
         logger.info(" The version of your Bonita BPM installation is now: $lastVersion")
         if (Version.valueOf(lastVersion) < Version.valueOf("7.3.0")) {
-            logger.info(" Now, you must reapply the customizations of your bonita home.")
+        logger.info(" Now, you must reapply the customizations of your bonita home.")
         }
         logger.info("--------------------------------------------------------------------------------------")
     }

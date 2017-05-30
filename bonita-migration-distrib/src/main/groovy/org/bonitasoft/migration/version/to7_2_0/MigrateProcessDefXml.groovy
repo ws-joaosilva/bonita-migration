@@ -173,14 +173,14 @@ class MigrateProcessDefXml extends MigrationStep {
             it instanceof Node && it.name() == nodeName
         } as Node
         if (nodeToRemove != null) {
-            Node parent = nodeToRemove.parent()
-            def nodeToRemoveNodeIndex = parent.children().indexOf(nodeToRemove)     
+        Node parent = nodeToRemove.parent()
+        def nodeToRemoveNodeIndex = parent.children().indexOf(nodeToRemove)
             nodeToRemove.children().reverse().each { Node child ->
-                parent.children().add(nodeToRemoveNodeIndex, child)
-            }
-            parent.children().remove(nodeToRemove)
-            return true
+            parent.children().add(nodeToRemoveNodeIndex, child)
         }
+        parent.children().remove(nodeToRemove)
+            return true
+    }
         false
     }
 

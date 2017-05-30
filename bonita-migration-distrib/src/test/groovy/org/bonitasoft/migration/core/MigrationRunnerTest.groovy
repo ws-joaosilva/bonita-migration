@@ -24,7 +24,7 @@ import spock.lang.Unroll
 /**
  * @author Baptiste Mesta
  */
-class MigrationRunnerTest extends Specification {
+class MigrationRunnerTest extends  Specification {
 
     def logger = Spy(Logger.class)
     VersionMigration versionMigration = Mock(VersionMigration);
@@ -81,7 +81,6 @@ class MigrationRunnerTest extends Specification {
         1 * sql.executeUpdate("UPDATE platform SET previousVersion = version")
         1 * sql.executeUpdate("UPDATE platform SET version = ${"7.3.1"}")
     }
-
     def "run check pre-requisites before running migration"() {
         setup:
         def versionMigration_7_5_0 = Mock(VersionMigration)
@@ -94,9 +93,22 @@ class MigrationRunnerTest extends Specification {
 
         MigrationRunner migrationRunner = new MigrationRunner(versionMigrations: [versionMigration_7_5_0], context: migrationContext, logger: logger, displayUtil: displayUtil)
 
+    def "run should execute migration steps in order"() {
+        given:
+        versionMigration.getVersion() >> "7.3.1"
         when:
-        migrationRunner.run(false)
+        migrationRunner.run(true)
+        then:
+        1 * migrationStep1.execute(migrationContext)
+        then:
+        1 * migrationStep2.execute(migrationContext)
+    }
 
+    def "run should change platform version in database"() {
+        given:
+        versionMigration.getVersion() >> "7.3.1"
+        when:
+        migrationRunner.run(true)
         then:
         1 * displayUtil.printInRectangleWithTitle("Migration to version 7.5.0", [MigrateTo7_5_0.WARN_MESSAGE_JAVA_8] as String[])
     }

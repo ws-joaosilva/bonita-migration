@@ -75,7 +75,7 @@ class DBUnitHelper {
         resource.text.split("@@|GO|;").each({ String stmt ->
             stmt = stmt.trim()
             if (!stmt.isEmpty()) {
-                context.sql.execute(stmt)
+            context.sql.execute(stmt)
             }
         })
     }

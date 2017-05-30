@@ -270,11 +270,11 @@ END""")
         def query = getScriptContent("/database/primaryKey", "primaryKey")
         sql.eachRow(query, [tableName]) { row ->
             def request
-            switch (dbVendor) {
-                case DBVendor.MYSQL:
+        switch (dbVendor) {
+            case DBVendor.MYSQL:
                     request = "ALTER TABLE " + row.TABLE_NAME + " DROP PRIMARY KEY"
-                    break;
-                default:
+                break;
+            default:
                     request = "ALTER TABLE " + row.TABLE_NAME + " DROP CONSTRAINT " + row.CONSTRAINT_NAME
             }
             println row
@@ -607,7 +607,7 @@ END""")
             scriptContent = s.text
         }
         scriptContent
-    }
+        }
 
     private GString getVersionFolder() {
         def versionFolder = "/version/to_${version.replace('.', '_')}"
